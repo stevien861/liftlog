@@ -47,11 +47,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up the Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        # GitHub's ubuntu-latest runners already have an Android SDK
+        # preinstalled at $ANDROID_HOME, so there's no need for a separate
+        # setup action (android-actions/setup-android@v3 tries to interactively
+        # re-accept 7 licenses and just hangs on CI with nothing to answer
+        # "y/N" - piping `yes` in ourselves avoids that entirely).
+        run: yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses || true
 
       - name: Install the exact SDK platform/build-tools this project targets
-        run: yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+        run: yes | sdkmanager --sdk_root="$ANDROID_HOME" "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
