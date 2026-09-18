@@ -47,13 +47,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Accept Android SDK licenses
+      - name: Put the preinstalled Android SDK tools on PATH
         # GitHub's ubuntu-latest runners already have an Android SDK
         # preinstalled at $ANDROID_HOME, so there's no need for a separate
         # setup action (android-actions/setup-android@v3 tries to interactively
         # re-accept 7 licenses and just hangs on CI with nothing to answer
-        # "y/N" - piping `yes` in ourselves avoids that entirely).
-        run: yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses || true
+        # "y/N"). But the sdkmanager binary inside it isn't on PATH by
+        # default - add it here, persisted to every later step via $GITHUB_PATH.
+        run: echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses
 
       - name: Install the exact SDK platform/build-tools this project targets
         run: yes | sdkmanager --sdk_root="$ANDROID_HOME" "platforms;android-34" "build-tools;34.0.0" "platform-tools"
