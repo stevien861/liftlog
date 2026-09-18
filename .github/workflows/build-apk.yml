@@ -1,0 +1,68 @@
+name Build APK
+
+on
+  push
+    branches [ main, master ]
+  workflow_dispatch {}
+
+permissions
+  contents write
+
+jobs
+  build
+    runs-on ubuntu-latest
+    steps
+      - name Check out the repo
+        uses actionscheckout@v4
+
+      - name Unzip project source (mobile-friendly upload path)
+        run 
+          if [ -f LiftLog-source.zip ]; then
+            echo Found LiftLog-source.zip - extracting it
+            unzip -o LiftLog-source.zip -d .
+          else
+            echo No LiftLog-source.zip found - assuming source was pushed directly
+          fi
+
+      - name Set up JDK 17
+        uses actionssetup-java@v4
+        with
+          distribution temurin
+          java-version '17'
+
+      - name Set up the Android SDK
+        uses android-actionssetup-android@v3
+
+      - name Install the exact SDK platformbuild-tools this project targets
+        run yes  sdkmanager platforms;android-34 build-tools;34.0.0 platform-tools
+
+      - name Set up Gradle
+        uses gradleactionssetup-gradle@v4
+
+      - name Generate the Gradle wrapper
+        run gradle wrapper --gradle-version 8.7
+
+      - name Build debug APK
+        run .gradlew assembleDebug --no-daemon --stacktrace
+
+      - name Run unit tests
+        run .gradlew testDebugUnitTest --no-daemon --stacktrace
+
+      - name Upload APK as a workflow artifact
+        uses actionsupload-artifact@v4
+        with
+          name LiftLog-debug-apk
+          path appbuildoutputsapkdebugapp-debug.apk
+
+      - name Publishrefresh the downloadable release
+        uses softpropsaction-gh-release@v2
+        with
+          tag_name apk-latest
+          name LiftLog (latest build)
+          body 
+            Automatically built from commit ${{ github.sha }}.
+
+            Download app-debug.apk below, open it on your Android phone,
+            and install it (you may need to allow install unknown apps for
+            whichever app you used to download it - Chrome, Files, etc.).
+          files appbuildoutputsapkdebugapp-debug.apk
